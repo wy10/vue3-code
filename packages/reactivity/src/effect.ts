@@ -19,13 +19,25 @@ export class ReactiveEffect {
     try {
       this.parent = activeEffect
       activeEffect = this
-      // 在用户执行之前 将之前的内容清空,下面的这种情况是不应该触发effect的
+      // 每次执行effect的时候，都需要把自己从对应属性的set中清除掉，然后重新把自己添加到对应属性的set中
+      // cleanupEffect实在是太绕了，举例子说明吧，比如下面的情况，第一次执行的时候
+
+      /**
+       * flag:[e1],name:[e1]; e1.dep = [{name:[e1],flag:[e1]}]
+       */
+
+      // 改变state.flag = fasle
+      /**
+       * flag:[e1]中的e1开始run, e1.dep=[{name:[]},{flag:[]}],重新收集 flag:[newe1],age:[newe1]
+       */
+       
       // state.flag = true
       // effect(()=>{
       //   state.flag?state.name:state.age
       // })
       // state.flag = false
-      // state.name = "123"
+      // state.name = "123"     这个时候name中的set已经为空，不在执行e1
+
       cleanupEffect(this)
       return this.fn()
     }finally{
@@ -100,6 +112,7 @@ export function trackEffect(dep){
     if(shouldTrack) {
       dep.add(activeEffect)
       // 直接存 当前 name:对应的所有effect,当name不存在的时候 所有的effect也不应该存在了
+      // 如果effect被删掉了，那么属性对应的effect也应该被删掉 
       activeEffect.deps.push(dep)
     }
   }
@@ -118,7 +131,11 @@ export function trigger(target,type,key,value,oldValue) {
 export function triggerEffect(effects) {
   effects = new Set(effects)
   effects && effects.forEach(effect => {
-    // 屏蔽掉无限调用 情况：在effect中为属性赋值,只让此effect只执行一次
+    /** 
+     *  最新注释：目前这个effect !== activeEffect 没什么用了，因为在执行effect函数的时候,会将该effect从属性的set中移除
+     *  当在effect中为属性赋值的时候，set中并不能拿到effect了，不会造成循环执行
+     * // 视频中的讲解：屏蔽掉无限调用 情况：在effect中为属性赋值,只让此effect只执行一次 这个是发生在还没有执行cleanupEffect的时候
+    */
     if(effect !== activeEffect) {
       if(effect.scheduler) {
         effect.scheduler()
