@@ -3,7 +3,7 @@ export let activeEffect = undefined
 function cleanupEffect(effect) {
   const { deps } = effect
   for(let i = 0; i < deps.length; i++) {
-    deps[i].delete(effect)  // 解除effect,重新依赖收集
+    deps[i].delete(effect)  // 解除effect,重新依赖收集/清除set中的effect,重新将effect放入对应属性的set中
   }
   effect.deps.length = 0
 }
