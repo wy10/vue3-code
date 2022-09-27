@@ -10,6 +10,7 @@ class ComputedRefImpl {
   public dep
   constructor(getter,public setter){
     this.effect = new ReactiveEffect(getter,()=>{
+      // 依赖改变之后要触发这个调度器
       if(!this._dirty) {
         this._dirty = true
         triggerEffect(this.dep)
@@ -42,3 +43,23 @@ export const computed = (getterOrOptions) => {
   }
   return new ComputedRefImpl(getter,setter)
 }
+
+/** 
+ * const state = reactive({age:1})
+ * const comp = computed({
+ *  get() {
+ *    return state.age
+ *  },
+ *  set(val) {
+ *    state.age = val
+ *  } 
+ * })
+ * effect(() => console.log(comp.value))
+ * comp.value = 3
+ * 核心部分是this.effect = new ReactiveEffect(getter,()=>{})
+ * 这个地方在computed中state.age = val 改变的时候是要触发这个调度器的，这个调度器中将会触发之前收集的effect(()=>console.log(comp.value)),
+ * 间接实现了comp.value值改变，触发effect
+ * 
+ * 核心部分是get value()中的trackEffect收集了computed.value对应的effect(() => console.log(comp.value)),紧接着this.effect.run的时候，
+ * 改变activeEffect为this.effect,此时state.age = val收集的是带有调度器的this.effect
+*/
