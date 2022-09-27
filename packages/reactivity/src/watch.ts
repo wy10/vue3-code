@@ -14,11 +14,11 @@ function traversal(value,set = new Set()) { // 如果对象中有循环引用的
   }
   return value
 }
-
+// source 有可能是用户传入的对象有可能是函数
 export function watch(source,cb) {
   let getter;
   if(isReactive(source)) {
-    // 对用户传入的数据进行循环，递归循环，访问属性的时候手机effect
+    // 对用户传入的数据进行循环，递归循环的目的是为了收集effect
     getter = () => traversal(source)
   }else if(isFunction(source)) {
     getter = source
@@ -26,15 +26,31 @@ export function watch(source,cb) {
   let oldValue
   let cleanup
   const onCleanup = (fn) =>{
-    cleanup = fn //保存用户的函数
+    cleanup = fn //保存用户的函数 
   }
   const job = () =>{
-    if(cleanup) cleanup()  //下一次watch开始触发上一次的watch的清理
+    if(cleanup) cleanup()  //下一次watch开始触发上一次的watch的清理,只改变用户最后一次触发watch的值
     const newValue = effect.run()
     cb(oldValue,newValue,onCleanup)
     oldValue = newValue
   }
-  const effect = new ReactiveEffect(getter,job)  // 监控自己构造的函数，变化后重新执行job
-  oldValue = effect.run()
+  const effect = new ReactiveEffect(getter,job)  // 属性变化后，执行job
+  oldValue = effect.run()  //source中的所有属性都收集当前这个effect
 
 }
+// 执行上一次console.log()
+// let clean
+// function cleanUp(fn) {
+//   clean = fn
+// }
+
+// function trigger(cb) {
+//   if(clean) {
+//     clean()
+//   }
+//   cb(cleanUp)
+// }
+
+// trigger((cleanUp)=>{ cleanUp(()=>console.log("x"))})
+// trigger((cleanUp)=>{ cleanUp(()=>console.log("xx"))})
+// trigger((cleanUp)=>{ cleanUp(()=>console.log("xxx"))})
