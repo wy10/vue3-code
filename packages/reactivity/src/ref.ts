@@ -62,9 +62,16 @@ export function proxyRefs(object) {
         oldValue.value = value
         return true
       }else{
-        Reflect.set(target, key, value,receiver)
+        return Reflect.set(target, key, value,receiver)
       }
     }
     
   })
 }
+
+/** 
+ * let obj = {name1:'haha',age:1}
+with(obj) {
+  console.log(name1,age)
+}
+*/
