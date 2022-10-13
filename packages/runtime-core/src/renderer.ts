@@ -1,5 +1,5 @@
 import { isString, ShapeFlags } from "@vue/shared"
-import { createVnode,Text } from "./vnode"
+import { createVnode,isSameVnode,Text } from "./vnode"
 // render('h1',{style:{color:'red'},onClick:()=>alert(1)},h('span','world'),'hello'),app)
 //创建虚拟dom 
 export function createRenderer(renderOptions) {
@@ -44,25 +44,60 @@ export function createRenderer(renderOptions) {
   const processText = (n1,n2,container) => {
     if(n1 == null){
       hostInsert((n2.el = hostCreateText(n2.children)),container)
+    }else {
+      const el = n2.el = n1.el
+      if(n1.children !== n2.children){
+        hostSetText(el,n2.children)
+      }
+    }
+  }
+  const patchProps = (oldProps,newProps,el) =>{
+    for(let key in newProps){
+      hostPatchProps(el,key,oldProps[key],newProps[key])
+    }
+    for(let key in oldProps){
+      if(newProps[key] === null){
+        hostPatchProps(el,key,oldProps[key],null)
+      }
+    }
+  }
+  const patchChildren = (n1,n2,container) =>{
+    // 比较两个虚拟节点的儿子的差异，el就是当前的父节点
+    const c1 = n1.children
+    const c2 = n2.children
+    // 比较两个儿子列表的差异
+  }
+  const patchElement = (n1,n2) =>{  //先复用 在比较属性 在比较儿子
+    let el = n2.el = n1.el
+    let oldProps = n1.props || {}
+    let newProps = n2.props || {}
+    patchProps(oldProps,newProps,el)
+    patchChildren(n1,n2,el)
+  }
+  const processElement = (n1, n2, container) =>{
+    if(n1 === null) {
+      mountElement(n2,container)
+    }else {
+      patchElement(n1,n2) 
     }
   }
   const patch = (n1,n2,container) => {
     if(n1 == n2) return
+    if(n1 && !isSameVnode(n1,n2)){
+      unmount(n1)
+      n1 = null
+    } 
     const { type, shapeFlag } = n2
-    if(n1 == null) {
-      switch (type) {
-        case Text:
-          processText(n1,n2,container)
-          break;
-      
-        default:
-          if(shapeFlag & ShapeFlags.ELEMENT){
-            mountElement(n2,container)
-          }
-          break;
-      }
-    }else {
-
+    switch (type) {
+      case Text:
+        processText(n1,n2,container)
+        break;
+    
+      default:
+        if(shapeFlag & ShapeFlags.ELEMENT){
+          processElement(n1,n2,container)
+        }
+        break;
     }
   }
   const unmount = (vnode) =>{
