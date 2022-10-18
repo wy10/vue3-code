@@ -31,5 +31,10 @@ export const enum ShapeFlags {
   SUSPENSE = 1 << 7,
   COMPONENT_SHOULD_KEEP_ALIVE = 1 << 8,
   COMPONENT_KEPT_ALIVE = 1 << 9,
-  COMPONENT = ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.FUNCTION_COMPONENT
+  COMPONENT = ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.FUNCTION_COMPONENT //异或运算 有一个1就是1
 }
+
+/**
+ * 借助位的或|运算将元素组合在一起
+ * 借助位的与&运算判断某个元素是否属于某一个组合 ElEMENT & COMPONENT = 0不属于
+ */

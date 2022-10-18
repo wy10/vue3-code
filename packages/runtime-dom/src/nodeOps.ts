@@ -1,3 +1,4 @@
+// 节点操作方法
 export const nodeOpts = {
   // 增删改查
   insert(child,parent,anchor = null) {
