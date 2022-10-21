@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>diff</title>
+    <script>
+      function isSameVnode(n1, n2) {
+        //判断两个虚拟节点是否是相同节点
+        return n1.type === n2.type && n1.key === n2.key
+      }
+      function isString(params) {
+        return typeof params === 'string'
+      }
+      function patchProps(vnode = {}) {
+        // 这里只处理style 也没有进行新旧节点属性拷贝对比，懒得写了
+        for (let key in vnode.props) {
+          vnode.el.style[key] = vnode.props[key]
+        }
+      }
+      let nodeOpts = {
+        createElement(element) {
+          return document.createElement(element)
+        },
+        insert(child, parent, anchor = null) {
+          parent.insertBefore(child, anchor)
+        },
+        innerHTML(el, content) {
+          el.innerHTML = content
+        },
+        setElementText(el, text) {
+          el.textContent = text
+        },
+        remove(child) {
+          const parentNode = child.parentNode
+          if (parentNode) {
+            parentNode.removeChild(child)
+          }
+        },
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="btn">点击</div>
+  </body>
+  <script>
+    function vnode(type, props, children) {
+      let vnode = {
+        type,
+        props,
+        children,
+        el: null,
+        key: props.key,
+      }
+      return vnode
+    }
+    function patchKeyedChildren(c1, c2, container) {
+      let oldStartIdx = 0
+      let newStartIdx = 0
+      let oldEndIdx = c1.length - 1
+      let newEndIdx = c2.length - 1
+      let oldStartVnode = c1[0]
+      let oldEndVnode = c1[oldEndIdx]
+      let newStartVnode = c2[0]
+      let newEndVnode = c2[newEndIdx]
+      let keyMap = null
+      while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
+        if (oldStartVnode === null || c1[oldStartIdx] === undefined) {
+          oldStartVnode = c1[++oldStartIdx]
+        } else if (oldEndVnode === null || c1[oldEndIdx] === undefined) {
+          oldEndVnode = c1[--oldEndIdx]
+        } else if (newStartVnode === null || c2[newStartIdx] === undefined) {
+          newStartVnode = c2[++newStartIdx]
+        } else if (newEndVnode === null || c2[newEndIdx] === undefined) {
+          newEndVnode = c2[--newEndIdx]
+        } else if (isSameVnode(oldStartVnode, newStartVnode)) {
+          // 新前与旧前命中
+          patch(oldStartVnode, newStartVnode, container)
+          oldStartVnode = c1[++oldStartIdx]
+          newStartVnode = c2[++newStartIdx]
+        } else if (isSameVnode(oldEndVnode, newEndVnode)) {
+          // 新后与旧后命中
+          patch(oldEndVnode, newEndVnode)
+          oldEndVnode = c1[--oldEndIdx]
+          newEndVnode = c2[--newEndIdx]
+        } else if (isSameVnode(oldStartVnode, newEndVnode)) {
+          patch(oldStartVnode, newEndVnode)
+          // 新后和旧前命中的时候，此时要移动节点，移动新后指向的这个节点放到老节点旧后的后面
+          nodeOpts.insert(newEndVnode, container, oldEndVnode)
+          oldStartVnode = c1[++oldStartIdx]
+          newEndVnode = c2[--newEndIdx]
+        } else if (isSameVnode(oldEndVnode, newStartVnode)) {
+          // 新前与旧后命中,此时要移动节点,把新前指向的这个节点放到旧前的前面
+          patch(oldEndVnode, newStartVnode)
+          nodeOpts.insert(newStartVnode, container, oldStartVnode)
+          oldEndVnode = c1[--oldEndIdx]
+          newStartVnode = c2[++newStartIdx]
+        } else {
+          // 四种都没有命中,制作一个keyMap映射对象,这样就不用每次都遍历老数组去寻找了
+          if (!keyMap) {
+            keyMap = {}
+            for (let i = oldStartIdx; i <= oldEndIdx; i++) {
+              const key = c1[i].key
+              if (key !== undefined) {
+                keyMap[key] = i
+              }
+            }
+          }
+          // 寻找当前这项(newStartIdx) 在keyMap中的映射的位置序号
+          const idxInOld = keyMap[newStartVnode.key]
+          if (!idxInOld) {
+            /** 如果idxInOld是undefined表示当前的newStartVnode是全新的项
+             * 此时会将该项创建为dom节点并插入到旧前之前
+             */
+            nodeOpts.insert(
+              nodeOpts.createElement(newStartVnode.type),
+              container,
+              oldStartVnode.el
+            )
+          } else {
+            // 如果不是全新的项,则需要移动
+            const eleToMove = c1[idxInOld]
+            patch(eleToMove, newStartVnode)
+            // 把这项设置为undefined 表示处理完这项
+            c1[idxInOld] = undefined
+            nodeOpts.insert(eleToMove.el, container, oldStartVnode.el)
+          }
+          // 新节点指针下移
+          newStartVnode = c2[++newStartIdx]
+        }
+      }
+    }
+    function patchChidren(n1, n2, container) {
+      /**
+       * 1.数组 数
+       * 2.数组 文本
+       * 3.文本 文本
+       * 4.文本 数组
+       */
+      if (isSameVnode(n1, n2)) {
+        const c1 = n1.children
+        const c2 = n2.children
+        // 新节点内容为文本 直接替换
+        if (isString(c2[0])) {
+          nodeOpts.setElementText(n1.el, c2)
+        } else if (isString(c1[0])) {
+          // 旧节点内容为文本
+          nodeOpts.innerHTML(c1.el, c2)
+        } else {
+          // 两个节点内容都为节点
+          patchKeyedChildren(c1, c2, container)
+        }
+      } else {
+        // 删除老节点
+        nodeOpts.remove(n1.el)
+        patch(null, n2, container)
+        if (container._vnode) {
+          container._vnode = n2
+        }
+      }
+    }
+    function patchElement(n1, n2, el) {
+      n2.el = n1.el
+      // 这个地方是把新节点的属性和旧节点做一个对比，上面patchProps函数没写完，懒得写了
+      patchProps(n2)
+      // 开始diff算法
+      patchChidren(n1, n2, el)
+    }
+    function mountChildren(children, el) {
+      for (let i = 0; i < children.length; i++) {
+        if (isString(children[i])) {
+          nodeOpts.setElementText(el, children[i])
+        } else {
+          // mountElement(children[i], el)
+          patch(null, children[i], el)
+        }
+      }
+    }
+    function mountElement(vnode, container) {
+      vnode.el = nodeOpts.createElement(vnode.type)
+      patchProps(vnode)
+      mountChildren(vnode.children, vnode.el)
+      nodeOpts.insert(vnode.el, container)
+    }
+    function processElement(n1, n2, container) {
+      // 挂载
+      if (n1 === null) {
+        mountElement(n2, container)
+      } else {
+        // 更新
+        patchElement(n1, n2, container)
+      }
+    }
+    function patch(n1, n2, container) {
+      if (n2.type == 'Text') {
+        // 创建文本节点逻辑 h('Text','fadf')
+      } else {
+        processElement(n1, n2, container)
+      }
+    }
+    function render(vnode, container) {
+      if (vnode !== null) {
+        patch(container._vnode || null, vnode, container)
+      } else {
+        // 卸载逻辑
+        nodeOpts.remove(container._vnode.el)
+      }
+      container._vnode = vnode
+    }
+    function h() {
+      // h('li', { background: 'green' }, 'a'),
+      // h('li', 'a'),
+      // 本质是用vnode函数来创建虚拟dom的，但需要处理用户传入的参数
+      const length = arguments.length
+      if (length >= 3) {
+        const type = arguments[0]
+        const props = arguments[1]
+        const children = Array.from(arguments).slice(2)
+        return vnode(type, props, children)
+      }
+    }
+    render(
+      h(
+        'div',
+        { color: 'red', key: 'div' },
+        h('li', { key: 'a', background: 'green' }, 'a'),
+        h('li', { key: 'b', background: 'green' }, 'b')
+      ),
+      app
+    )
+
+    // 卸载逻辑
+    // setTimeout(() => {
+    //   render(null, app)
+    // }, 1000)
+    const btn = document.getElementById('btn')
+    btn.onclick = function (event) {
+      render(
+        h(
+          'div',
+          { color: 'red', key: 'div' },
+          h('li', { key: 'a', background: 'pink' }, 'c'),
+          h('li', { key: 'b', background: 'green' }, 'a')
+        ),
+        app
+      )
+    }
+  </script>
+</html>

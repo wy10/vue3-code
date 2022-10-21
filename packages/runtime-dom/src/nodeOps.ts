@@ -2,7 +2,7 @@
 export const nodeOpts = {
   // 增删改查
   insert(child,parent,anchor = null) {
-    parent.inserBefore(child,anchor)
+    parent.insertBefore(child,anchor)
   },
   remove(child) {
     const parentNode = child.parentNode
