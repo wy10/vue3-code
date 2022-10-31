@@ -82,19 +82,19 @@
           newStartVnode = c2[++newStartIdx]
         } else if (isSameVnode(oldEndVnode, newEndVnode)) {
           // 新后与旧后命中
-          patch(oldEndVnode, newEndVnode)
+          patch(oldEndVnode, newEndVnode, container)
           oldEndVnode = c1[--oldEndIdx]
           newEndVnode = c2[--newEndIdx]
         } else if (isSameVnode(oldStartVnode, newEndVnode)) {
-          patch(oldStartVnode, newEndVnode)
+          patch(oldStartVnode, newEndVnode, container)
           // 新后和旧前命中的时候，此时要移动节点，移动新后指向的这个节点放到老节点旧后的后面
-          nodeOpts.insert(newEndVnode, container, oldEndVnode)
+          container.appendChild(newEndVnode.el)
           oldStartVnode = c1[++oldStartIdx]
           newEndVnode = c2[--newEndIdx]
         } else if (isSameVnode(oldEndVnode, newStartVnode)) {
           // 新前与旧后命中,此时要移动节点,把新前指向的这个节点放到旧前的前面
-          patch(oldEndVnode, newStartVnode)
-          nodeOpts.insert(newStartVnode, container, oldStartVnode)
+          patch(oldEndVnode, newStartVnode, container)
+          nodeOpts.insert(newStartVnode.el, container, oldStartVnode.el)
           oldEndVnode = c1[--oldEndIdx]
           newStartVnode = c2[++newStartIdx]
         } else {
@@ -114,11 +114,9 @@
             /** 如果idxInOld是undefined表示当前的newStartVnode是全新的项
              * 此时会将该项创建为dom节点并插入到旧前之前
              */
-            nodeOpts.insert(
-              nodeOpts.createElement(newStartVnode.type),
-              container,
-              oldStartVnode.el
-            )
+            const el = nodeOpts.createElement(newStartVnode.type)
+            nodeOpts.insert(el, container, oldStartVnode.el)
+            mountChildren(newStartVnode.children, el)
           } else {
             // 如果不是全新的项,则需要移动
             const eleToMove = c1[idxInOld]
@@ -147,10 +145,10 @@
           nodeOpts.setElementText(n1.el, c2)
         } else if (isString(c1[0])) {
           // 旧节点内容为文本
-          nodeOpts.innerHTML(c1.el, c2)
+          nodeOpts.innerHTML(n1.el, c2)
         } else {
           // 两个节点内容都为节点
-          patchKeyedChildren(c1, c2, container)
+          patchKeyedChildren(c1, c2, n1.el)
         }
       } else {
         // 删除老节点
@@ -241,8 +239,8 @@
         h(
           'div',
           { color: 'red', key: 'div' },
-          h('li', { key: 'a', background: 'pink' }, 'c'),
-          h('li', { key: 'b', background: 'green' }, 'a')
+          h('li', { key: 'b', background: 'green' }, 'b'),
+          h('li', { key: 'c', background: 'green' }, 'c')
         ),
         app
       )

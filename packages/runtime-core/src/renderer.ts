@@ -28,7 +28,7 @@ function getSequence(arr){
         if(arr[result[middle]] < arrI){
           start = middle + 1
         }else {
-          end = middle - 1
+          end = middle
         }
       }
       if(arrI < arr[result[start]]){
@@ -144,7 +144,7 @@ export function createRenderer(renderOptions) {
       e1--
       e2--
     }
-    
+    // [0,1] [0,1,2]  [1,2]=>[0,1,2]
     if(i > e1){
       if(i <= e2 ){
         // 新增元素
@@ -157,6 +157,7 @@ export function createRenderer(renderOptions) {
         }
       }
     }else if(i > e2){
+      // 老组件多，新组件少，删除多余老的
       while (i <= e1) {
         unmount(c1[i])
         i++
@@ -165,14 +166,14 @@ export function createRenderer(renderOptions) {
     // abcdefg abecdhfg i = 2, e1 = 4, e2 = 5
     const s1 = i
     const s2 = i
-    // 根据新的节点 创造一个一个映射表，用老的列表去里面找，有则服用，没有删除，新的多余的增加
+    // 根据新的节点 创造一个映射表，用老的列表项去新列表里面找，有则复用老的，没有删除老item，新的多余的增加
     const keyToNewIndexMap = new Map()
     for(let i = s2; i <= e2; i++){
       const child = c2[i]
       keyToNewIndexMap.set(child.key,i)
     }
-    const toBepatched = e2 - s2 +1
-    const newIndexToOldMapIndex = new Array(toBepatched).fill(0)
+    const toBepatched = e2 - s2 +1    // [e,c,d,h]
+    const newIndexToOldMapIndex = new Array(toBepatched).fill(0)   //最长递增子序列
     // 拿老的去新的中查找
     for(let i = s1; i <= e1; i++){
       const prevChild = c1[i]
@@ -180,12 +181,13 @@ export function createRenderer(renderOptions) {
       if(newIndex === undefined){
         unmount(prevChild)
       }else {
+        // newIndex-s2 为老项在新项目中存在的情况下，填到newIndexToOldMapIndex的位置 newIndexToOldMapIndex = [5,3,4,0]0代表h为新增元素
         newIndexToOldMapIndex[newIndex-s2] = i +1 //保证填的肯定不是0
         // 比较两节点
         patch(prevChild,c2[newIndex],container)
       }
     }
-    let queue = getSequence(newIndexToOldMapIndex)
+    let queue = getSequence(newIndexToOldMapIndex)  //[c,d]
     let j = queue.length - 1
     for(let i = toBepatched - 1; i >=0; i--){
       let lastIndex = s2 + i
@@ -285,6 +287,7 @@ export function createRenderer(renderOptions) {
   const unmount = (vnode) =>{
     hostRemove(vnode.el)
   }
+  // 这个函数代表两种可能性，一个是dom挂载到容器中，一个是删除容器的内容
   const render = (vnode,container) => {
     if(vnode === null){
       if(container._vnode){
