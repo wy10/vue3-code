@@ -88,3 +88,16 @@ renderer.render(vnode,app)
 
 总结：底层是虚拟dom，上一层只需要我们传入渲染APP,createRender.render就会按照用户的行为去创建
 ```
+
+packages下安装包
+pnpm install @vue/shared@workspace --filter @vue/reactivity
+
+代理对象的问题
+const obj = {name:'wy',age:18}
+const state = reactive(obj)
+const state1 = reactive(obj)
+1.state === state1 采用WeakMap解决（weakMap弱引用）
+const state1 = reactive(obj)
+2.state === state1 
+
+计算属性本身不会执行，他在取值的时候会执行，但是多次取同一个计算属性且依赖没有变化的时候，计算属性也只是执行了一次

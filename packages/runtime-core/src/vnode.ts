@@ -1,4 +1,4 @@
-import { isArray, isString, ShapeFlags } from "@vue/shared";
+import { isArray, isString, ShapeFlags,isObject } from "@vue/shared";
 export const Text = Symbol('Text')
 
 export function isVnode(value) {
@@ -8,7 +8,8 @@ export function isSameVnode(n1,n2) {  //判断两个虚拟节点是否是相同�
   return n1.type === n2.type && n1.key === n2.key
 }
 export function createVnode(type,props,children = null){
-  // 组合方案 想知道一个元素中包含的是多个儿子还是一个儿子,情况不容 儿子塞进元素中的方法调用也是不一样的
+  // 组合方案 描述当前这个虚拟节点是组件还是元素，并且描述当前虚拟节点的儿子是文本还是数组
+  // isObject?ShapeFlag.COMPONENT
    let shapeFlag = isString(type) ? ShapeFlags.ELEMENT : 0
    // 虚拟dom diff算法
    const vnode = {

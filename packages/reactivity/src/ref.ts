@@ -12,6 +12,7 @@ class RefImpl{
   constructor(public rawValue) {
     this._value = toReactive(rawValue)
   }
+  // 这两用于直接更改value的情况，比如a.value = {} 或者 基本数据类型a.value = 3
   get value() {
     trackEffect(this.dep)
     return this._value
@@ -19,7 +20,7 @@ class RefImpl{
   set value(newValue) {
     if(newValue !== this.rawValue) {
       this._value = toReactive(newValue)
-      this.rawValue = newValue
+      this.rawValue = this._value
       triggerEffect(this.dep)
     }
   }

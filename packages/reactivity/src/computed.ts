@@ -1,6 +1,6 @@
 import { isFunction } from "@vue/shared"
 import { ReactiveEffect, trackEffect, triggerEffect } from "./effect";
-
+// 类中的访问器属性 基于的是 defineProperty
 class ComputedRefImpl {
   public effect
   public _dirty = true
@@ -9,6 +9,7 @@ class ComputedRefImpl {
   public _value
   public dep
   constructor(getter,public setter){
+    // 将计算属性的函数包装成effect
     this.effect = new ReactiveEffect(getter,()=>{
       // 依赖改变之后要触发这个调度器
       if(!this._dirty) {
@@ -17,6 +18,7 @@ class ComputedRefImpl {
       }
     })
   }
+  // 取计算属性值的时候进行依赖收集
   get value(){
     trackEffect(this.dep || (this.dep = new Set()))
     if(this._dirty) {

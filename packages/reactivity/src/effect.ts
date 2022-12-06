@@ -7,6 +7,7 @@ function cleanupEffect(effect) {
   }
   effect.deps.length = 0
 }
+// 让effect记录他依赖哪些属性，同时也要记录当前的属性依赖哪些effect
 export class ReactiveEffect {
   public active = true
   public parent = null
@@ -39,6 +40,7 @@ export class ReactiveEffect {
       // state.name = "123"     这个时候name中的set已经为空，不在执行e1
 
       cleanupEffect(this)
+      // 走proxy中的get方法，相当于做依赖收集
       return this.fn()
     }finally{
       activeEffect = this.parent
@@ -58,10 +60,11 @@ export class ReactiveEffect {
       //   state.flag?state.name:state.age
       // },{ scheduler(){} })
 export function effect(fn, options:any = {}) {
-  // fn 可以根据状态变化重新执行，effect可以嵌套写
+  // fn 可以根据状态变化重新执行，effect可以嵌套写,把fn(effect)包装成响应式的effect
   const _effect = new ReactiveEffect(fn,options.scheduler)
   _effect.run()
-  const runner = _effect.run.bind(this)
+  // runner.effect.stop() runner()
+  const runner = _effect.run.bind(_effect)
   runner.effect = _effect
   return runner
 }
@@ -111,8 +114,7 @@ export function trackEffect(dep){
     let shouldTrack = !dep.has(activeEffect)
     if(shouldTrack) {
       dep.add(activeEffect)
-      // 直接存 当前 name:对应的所有effect,当name不存在的时候 所有的effect也不应该存在了
-      // 如果effect被删掉了，那么属性对应的effect也应该被删掉 
+      // 当前effect依赖哪些属性 
       activeEffect.deps.push(dep)
     }
   }
@@ -122,7 +124,7 @@ export function trigger(target,type,key,value,oldValue) {
   const depsMap = targetMap.get(target)
   if(!depsMap) return
   let effects = depsMap.get(key)
-  // 执行直线先拷贝一份，不要在原Set循环，比如我在循环的过程中又往Set里面放数据 程序就会崩溃
+  // 先拷贝一份，不要在原Set循环，比如我在循环的过程中又往Set里面放数据 程序就会崩溃
   if(effects) {
     triggerEffect(effects)
   }

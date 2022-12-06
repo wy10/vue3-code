@@ -260,8 +260,10 @@ export function createRenderer(renderOptions) {
   }
   const processElement = (n1, n2, container,anchor) =>{
     if(n1 === null) {
+      // 组件的初始化
       mountElement(n2,container,anchor)
     }else {
+      // 组件的更新
       patchElement(n1,n2) 
     }
   }
