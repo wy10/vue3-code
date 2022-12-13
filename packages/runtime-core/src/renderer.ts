@@ -1,4 +1,7 @@
-import { isString, ShapeFlags } from "@vue/shared"
+import { reactive } from "@vue/reactivity"
+import { hasOwn, isFunction, isObject, isString, ShapeFlags } from "@vue/shared"
+import { ReactiveEffect } from "packages/reactivity/src/effect"
+import { createComponentInstance } from "."
 import { createVnode,isSameVnode,Text } from "./vnode"
 
 function getSequence(arr){
@@ -45,6 +48,76 @@ function getSequence(arr){
   }
   return result
 }
+export function initProps(instance,rawProps) {
+  const props = {}
+  const attrs = {}
+  const options = Object.keys(instance.propsOptions) //用户注册过的props
+  if(rawProps) {
+    for(let key in rawProps){
+      const value = rawProps[key]
+      if(options.includes(key)) {
+        props[key] = value
+      }else {
+        attrs[key] = value
+      }
+    }
+  }
+  instance.props = reactive(props)
+  instance.attrs = attrs
+}
+export function createSetupContext(instance) {
+  return {
+    attrs:instance.attrs,
+    slots:instance.slots,
+    emit:instance.emit,
+    expose:(exposed)=>instance.exposed = exposed || {}
+  }
+}
+export function setupStatefullComponent(instance) {
+  // 核心就是调用组件的setup方法
+  const Component = instance.type
+  const { setup } = Component
+  instance.proxy = new Proxy(instance.ctx,{
+    get({_:instance}, key, receiver) {
+      const { setupState,props} = instance
+      if(hasOwn(setupState,key)) {
+        return setupState[key]
+      }else if(hasOwn(props,key)) {
+        return props[key]
+      }
+    },
+    set({_:instance}, key,value, receiver){
+      const {setupState,props} = instance   //props不可以修改
+      if(hasOwn(setupState,key)) {
+        return setupState[key] = value
+      }else if(hasOwn(props,key)) {
+        console.warn("props are readonly")
+      }
+      return true
+    }
+  })
+  if(setup) {
+    const setupContext = createSetupContext(instance)
+    let setupResult = setup(instance.props,setupContext)
+    if(isFunction(setupResult)) {
+      instance.render = setupResult //如果setup返回的是函数，那么就是render函数
+    }else if(isObject(setupResult)) {
+      instance.setupState = setupResult
+    }
+  }
+  if(!instance.render){
+    // 如果没有render，而写的是template,则要模板编译
+    instance.render = Component.render
+  }
+}
+export function setupComponent(instance) {
+  const {props,children} = instance.vnode
+  // 组件的属性初始化
+  initProps(instance,props)
+  // 插槽的初始化
+
+  setupStatefullComponent(instance)
+}
 // render('h1',{style:{color:'red'},onClick:()=>alert(1)},h('span','world'),'hello'),app)
 // h(Text,'hello')
 //创建虚拟dom 
@@ -71,6 +144,35 @@ export function createRenderer(renderOptions) {
       let child = normalize(children[i])
       patch(null,child,container)
     }
+  }
+  function setupRenderEffect(initialVNode,instance,container) {
+    // 创建渲染effect
+    // 核心就是调用render，数据变化就重新调用render
+    const componentUpdateFn = () =>{
+      let {proxy} = instance // render中的参数
+      if(!instance.isMounted){
+        const subTree = instance.subTree = instance.render.call(proxy,proxy)
+        // 组件的初始化流程
+        patch(null,subTree,container) //稍后渲染完subTree 会生成真实节点之后挂载
+        instance.isMounted = true
+      }else {
+        // 组件更新流程,做diff算法，比较前后两棵树
+        const prevTree = instance.subTree
+        const nextTree = instance.render.call(proxy,proxy)
+        patch(prevTree,nextTree,container)
+      }
+    }
+    const effect = new ReactiveEffect(componentUpdateFn,()=>{})
+    const update = effect.run.bind(effect)
+    update()
+  }
+  function mountComponent(initialVNode,container){
+    // 1.给组件创造一个实例
+    const instance = initialVNode.component = createComponentInstance(initialVNode)
+    // 2.需要给组件的实例进行赋值操作
+    setupComponent(instance)
+    // 3.调用render方法实现组件的渲染逻辑，如果依赖发生变化，组件要重新渲染
+    setupRenderEffect(initialVNode,instance,container)
   }
   function mountElement(vnode,container,anchor) {
     let {type, props,children,shapeFlag} = vnode
@@ -267,6 +369,14 @@ export function createRenderer(renderOptions) {
       patchElement(n1,n2) 
     }
   }
+  const processComponent = (n1, n2, container,anchor = null) =>{
+    if(n1 === null) {
+      // 组件的初始化
+      mountComponent(n2,container)
+    }else {
+      // 组件的更新
+    }
+  }
   const patch = (n1,n2,container,anchor = null) => {
     if(n1 == n2) return
     if(n1 && !isSameVnode(n1,n2)){
@@ -282,6 +392,8 @@ export function createRenderer(renderOptions) {
       default:
         if(shapeFlag & ShapeFlags.ELEMENT){
           processElement(n1,n2,container,anchor)
+        }else if(shapeFlag & ShapeFlags.COMPONENT){
+          processComponent(n1,n2,container)
         }
         break;
     }

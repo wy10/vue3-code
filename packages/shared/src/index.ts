@@ -18,6 +18,11 @@ export function isNumber(params:any) {
   return typeof params === 'number'
 }
 
+export function hasOwn(value,key) {
+  const hasOwnProperty = Object.prototype.hasOwnProperty
+  return hasOwnProperty.call(value,key)
+}
+
 export const assign = Object.assign
 
 export const enum ShapeFlags {
