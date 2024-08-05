@@ -1,5 +1,23 @@
 import { isFunction } from "@vue/shared"
 import { ReactiveEffect, trackEffect, triggerEffect } from "./effect";
+/* 
+  let person = reactive({name:'vue'})
+  let comPerson = computed(()=>{
+    return person.name
+  })
+  person.name ==== ()=>{ trigger(deps)}
+
+  effect(()=>{
+    console.log(comPerson.value)
+  })
+  comPerson.value ==== ()=>{console.log(comPerson.value)}
+
+  setTimeout(() => {
+    person.name="vue3"
+    person.name 触发执行computedEffect，在computedEffect中去触发computed属性收集的依赖
+    // comPerson.value = "vue3"
+  }, 1000);
+*/
 // 类中的访问器属性 基于的是 defineProperty
 class ComputedRefImpl {
   public effect
