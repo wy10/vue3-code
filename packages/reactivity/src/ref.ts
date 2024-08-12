@@ -39,7 +39,7 @@ class ObjectRefImpl{ //只是将.value属性代理到原始类型上
   }
 }
 
-function toRef(object,key) {
+export function toRef(object,key) {
   return new ObjectRefImpl(object,key)
 }
 export function toRefs(object) {
